@@ -1,24 +1,20 @@
 package com.training.OrderService.service;
 //import com.training.OrderService.event.OrderEvent;
 //import com.training.OrderService.event.OrderEventProducer;
-import com.training.OrderService.event.PaymentSuccessEvent;
+import com.training.OrderService.exception.OrderNotFoundException;
 import com.training.OrderService.model.Order;
 import com.training.OrderService.model.OrderStatus;
 import com.training.OrderService.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
-import javax.management.Notification;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import lombok.RequiredArgsConstructor;
+
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
@@ -49,13 +45,6 @@ public class OrderService {
         System.out.println("Finalizing order with ID: " + orderId);
     }
 
-    /*@KafkaListener(topics = "payment-events", groupId = "zion-group")
-    public void listenPaymentSuccess(PaymentSuccessEvent event) {
-        if ("SUCCESS".equals(event.getStatus())) {
-            finalizeOrder(event.getOrderId());
-        }
-    }*/
-
     public Order placeOrder(Long customerId, String productId, int quantity, BigDecimal totalPrice) {
         Order order = new Order();
         order.setCustomerId(customerId);
@@ -68,23 +57,8 @@ public class OrderService {
         Order savedOrder = orderRepository.save(order);
 
         System.out.println("Order placed successfully for order id "+savedOrder.getId()+" publishing orde placed event");
-        //OrderEvent orderEvent = new OrderEvent(order.getId(),order.getCustomerId(), "Order PLACED");
         String value = "for customer id "+savedOrder.getCustomerId()+" and order id is "+savedOrder.getId();
-        //orderEventProducer.sendOrderEvent(orderEvent);
         kafkaTemplate.send("orderTopic", "ORDER_PLACED", value);
-
-
-
-     /*   Notification notification = new Notification(
-                savedOrder.getId(),
-                savedOrder.getCustomerId(),
-                "Your order has been placed successfully!"
-        );
-
-        kafkaTemplate.send("notification-topic", notification);*/
-
-        //kafkaTemplate.send("orderTopic", savedOrder.getId(), "ORDER_PLACED");
-
         return savedOrder;
     }
 
@@ -92,19 +66,18 @@ public class OrderService {
         return orderRepository.findByCustomerId(customerId);
     }
 
-    public Optional<Order> getOrderById(Long orderId) {
-        return orderRepository.findById(orderId);
+    public Order getOrderById(Long orderId) {
+        return orderRepository.findById(orderId).orElseThrow(()-> new OrderNotFoundException("Order with ID "+orderId+" not found"));
     }
 
     public void updateOrder(Long orderId){
-        Optional<Order> order = getOrderById(orderId);
-        if(order.isPresent()){
-            order.get().setStatus(OrderStatus.CONFIRMED);
+        Order order = getOrderById(orderId);
+        order.setStatus(OrderStatus.CONFIRMED);
             System.out.println("Order payment is successful so order confirmed");
-            orderRepository.save(order.get());
+            orderRepository.save(order);
             System.out.println("Triggering order confirmed event");
-            String value = "for customer id "+order.get().getCustomerId()+" and order id is "+order.get().getId();
+            String value = "for customer id "+order.getCustomerId()+" and order id is "+order.getId();
             kafkaTemplate.send("orderTopic", "ORDER_CONFIRMED", value);
-        }
+
     }
 }

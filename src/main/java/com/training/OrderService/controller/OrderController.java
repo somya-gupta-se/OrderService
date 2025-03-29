@@ -42,8 +42,8 @@ public class OrderController {
 
     @GetMapping("/{orderId}")
     public ResponseEntity<Order> getOrderById(@PathVariable Long orderId) {
-        Optional<Order> order = orderService.getOrderById(orderId);
-        return order.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+        Order order = orderService.getOrderById(orderId);
+        return ResponseEntity.ok(order);
     }
 
     @GetMapping("/customer/{customerId}")
