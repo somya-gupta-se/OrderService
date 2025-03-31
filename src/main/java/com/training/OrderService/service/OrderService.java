@@ -6,6 +6,8 @@ import com.training.OrderService.model.Order;
 import com.training.OrderService.model.OrderStatus;
 import com.training.OrderService.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -22,30 +24,13 @@ public class OrderService {
 
     @Autowired
     private OrderRepository orderRepository;
-
-/*
-    private OrderEventProducer orderEventProducer;
-
-
     @Autowired
-    public OrderService(@Lazy OrderEventProducer orderEventProducer) {
-        this.orderEventProducer = orderEventProducer;
-    }*/
-
-   /* @Autowired
-    public OrderService(OrderRepository orderRepository, OrderEventProducer orderEventProducer) {
-        this.orderRepository = orderRepository;
-        this.orderEventProducer = orderEventProducer;
-    }*/
-
-@Autowired
     private KafkaTemplate<String, String> kafkaTemplate;
+    Logger LOGGER = LoggerFactory.getLogger(OrderService.class);
 
-    public void finalizeOrder(Long orderId) {
-        System.out.println("Finalizing order with ID: " + orderId);
-    }
 
     public Order placeOrder(Long customerId, String productId, int quantity, BigDecimal totalPrice) {
+
         Order order = new Order();
         order.setCustomerId(customerId);
         order.setProductId(productId);
@@ -56,7 +41,7 @@ public class OrderService {
 
         Order savedOrder = orderRepository.save(order);
 
-        System.out.println("Order placed successfully for order id "+savedOrder.getId()+" publishing orde placed event");
+        LOGGER.info("Order placed successfully for order id {} publishing order placed event", savedOrder.getId());
         String value = "for customer id "+savedOrder.getCustomerId()+" and order id is "+savedOrder.getId();
         kafkaTemplate.send("orderTopic", "ORDER_PLACED", value);
         return savedOrder;
@@ -73,11 +58,11 @@ public class OrderService {
     public void updateOrder(Long orderId){
         Order order = getOrderById(orderId);
         order.setStatus(OrderStatus.CONFIRMED);
-            System.out.println("Order payment is successful so order confirmed");
-            orderRepository.save(order);
-            System.out.println("Triggering order confirmed event");
-            String value = "for customer id "+order.getCustomerId()+" and order id is "+order.getId();
-            kafkaTemplate.send("orderTopic", "ORDER_CONFIRMED", value);
+        LOGGER.info("Order payment is successful so order confirmed");
+        orderRepository.save(order);
+        LOGGER.info("Triggering order confirmed event");
+        String value = "for customer id "+order.getCustomerId()+" and order id is "+order.getId();
+        kafkaTemplate.send("orderTopic", "ORDER_CONFIRMED", value);
 
     }
 }

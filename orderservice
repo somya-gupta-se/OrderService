@@ -12,3 +12,13 @@ EXPOSE 8082
 
 # Command to run the application
 ENTRYPOINT ["java", "-jar", "OrderService-0.0.1-SNAPSHOT.jar"]
+
+
+RUN mkdir -p /logs
+
+# Define volume for logs (needed for ELK)
+VOLUME [ "/logs" ]
+
+
+# Set environment variables
+ENV LOGGING_FILE_NAME=/logs/zion.log
